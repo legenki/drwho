@@ -1,4 +1,5 @@
 import { db } from "./lib/db"
+import { saveSnapshot } from "./lib/timeTravel"
 
 const MENU_INVESTIGATE_ID = "drwho-investigate"
 
@@ -24,6 +25,37 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         chrome.sidePanel.open({ windowId: tab.windowId })
       }
     }
+  }
+})
+
+// --- Auto Save Logic (Alarms) ---
+
+const AUTO_SAVE_ALARM = "drwho-autosave"
+
+const setupAutoSave = async () => {
+  const { autoSave, autoSaveInterval } = await chrome.storage.local.get(["autoSave", "autoSaveInterval"])
+  await chrome.alarms.clear(AUTO_SAVE_ALARM)
+  
+  if (autoSave && autoSaveInterval) {
+    chrome.alarms.create(AUTO_SAVE_ALARM, {
+      periodInMinutes: autoSaveInterval
+    })
+  }
+}
+
+chrome.runtime.onInstalled.addListener(setupAutoSave)
+chrome.runtime.onStartup.addListener(setupAutoSave)
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === AUTO_SAVE_ALARM) {
+    saveSnapshot("Auto Snapshot", "Сгенерировано автоматически")
+  }
+})
+
+// Update alarm when settings change
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.autoSave || changes.autoSaveInterval) {
+    setupAutoSave()
   }
 })
 

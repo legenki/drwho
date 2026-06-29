@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
-import { Clock, Search, BarChart2, Folder, Play } from "lucide-react"
+import { Clock, Search, BarChart2, Folder, Play, History, Filter } from "lucide-react"
 import { db } from "./lib/db"
 import { restoreSnapshot } from "./lib/timeTravel"
 import { InvestigatorTab } from "./components/InvestigatorTab"
@@ -8,8 +8,17 @@ import "./style.css"
 
 function SidePanel() {
   const [activeTab, setActiveTab] = useState<"timeline" | "investigator">("timeline")
+  const [searchQuery, setSearchQuery] = useState("")
 
   const snapshots = useLiveQuery(() => db.snapshots.orderBy("createdAt").reverse().toArray())
+
+  const filteredSnapshots = snapshots?.filter(snap => {
+    if (!searchQuery) return true
+    const q = searchQuery.toLowerCase()
+    return snap.name.toLowerCase().includes(q) || 
+           snap.note?.toLowerCase().includes(q) || 
+           snap.windows.some(w => w.tabs.some(t => t.title.toLowerCase().includes(q) || t.url.toLowerCase().includes(q)))
+  })
 
   return (
     <div className="flex flex-col h-screen bg-background text-white">
@@ -33,7 +42,17 @@ function SidePanel() {
       <div className="flex-1 overflow-y-auto p-4">
         {activeTab === "timeline" && (
           <div className="flex flex-col gap-4">
-            {snapshots?.map((snap) => {
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
+              <input 
+                type="text"
+                placeholder="Поиск по снимкам, заметкам и вкладкам..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full bg-[#1A2638] border border-[#2A3648] rounded-lg py-2 pl-9 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan transition-colors"
+              />
+            </div>
+            {filteredSnapshots?.map((snap) => {
               const totalTabs = snap.windows.reduce((acc, w) => acc + w.tabs.length, 0)
               return (
                 <div key={snap.id} className="bg-[#1A2638] p-4 rounded-xl border border-[#2A3648] hover:border-cyan/50 transition-colors">
@@ -78,11 +97,11 @@ function SidePanel() {
                 </div>
               )
             })}
-            {snapshots?.length === 0 && (
+            {filteredSnapshots?.length === 0 && (
               <div className="text-center text-gray-500 mt-10">
                 <History className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                <p>У вас еще нет снимков времени.</p>
-                <p className="text-xs mt-1">Откройте Popup и сохраните текущее состояние.</p>
+                <p>{searchQuery ? "Ничего не найдено по запросу." : "У вас еще нет снимков времени."}</p>
+                {!searchQuery && <p className="text-xs mt-1">Откройте Popup и сохраните текущее состояние.</p>}
               </div>
             )}
           </div>
