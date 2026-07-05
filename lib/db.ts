@@ -21,7 +21,8 @@ export interface DomainStat {
   domain: string
   totalTimeMs: number
   visitCount: number
-  lastVisit: Date
+  firstVisitedAt?: number
+  lastVisitedAt?: number
 }
 
 export class DrWhoDatabase extends Dexie {

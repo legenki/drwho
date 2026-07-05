@@ -47,7 +47,9 @@
       "contextMenus",
       "sidePanel",
       "alarms",
-      "idle"
+      "idle",
+      "scripting",
+      "activeTab"
     ],
     "host_permissions": [
       "https://*/*"

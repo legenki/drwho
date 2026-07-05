@@ -71,19 +71,21 @@ const updateDomainTime = async () => {
   
   if (timeSpent > 0) {
     try {
-      const stat = await db.domainStats.get(activeDomain)
+      let stat = await db.domainStats.get(activeDomain)
+      const timeDiff = timeSpent
+      
       if (stat) {
-        await db.domainStats.update(activeDomain, {
-          totalTimeMs: stat.totalTimeMs + timeSpent,
-          lastVisit: new Date(now),
-          visitCount: stat.visitCount + 1
-        })
+        stat.totalTimeMs += timeDiff
+        stat.lastVisitedAt = now
+        stat.visitCount += 1
+        await db.domainStats.put(stat)
       } else {
-        await db.domainStats.add({
+        await db.domainStats.put({
           domain: activeDomain,
-          totalTimeMs: timeSpent,
+          totalTimeMs: timeDiff,
           visitCount: 1,
-          lastVisit: new Date(now)
+          firstVisitedAt: now,
+          lastVisitedAt: now
         })
       }
     } catch (e) {
