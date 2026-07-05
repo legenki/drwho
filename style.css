@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-background text-white m-0 p-0 font-sans;
+@layer base {
+  body {
+    /* Base text color adapts automatically with utility classes on wrappers, but we can set default here */
+    @apply m-0 p-0 font-sans text-gray-900 bg-gradient-to-br from-blue-50 via-white to-purple-50;
+    background-attachment: fixed;
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    body {
+      @apply text-white bg-gradient-to-br from-[#050A1F] via-[#0A1628] to-[#1a1025];
+    }
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply bg-white/40 dark:bg-black/30 backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-lg;
+  }
+  
+  .glass-input {
+    @apply bg-white/50 dark:bg-black/40 backdrop-blur-md border border-white/60 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan/50 transition-all;
+  }
+  
+  .glass-button {
+    @apply bg-cyan/80 dark:bg-cyan/90 hover:bg-cyan text-[#050A1F] font-semibold backdrop-blur-md border border-white/40 dark:border-white/20 shadow-lg hover:shadow-xl transition-all;
+  }
 }
