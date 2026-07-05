@@ -5,7 +5,7 @@
 @layer base {
   body {
     /* Base text color adapts automatically with utility classes on wrappers, but we can set default here */
-    @apply m-0 p-0 font-sans text-gray-900 bg-gradient-to-br from-blue-50 via-white to-purple-50;
+    @apply m-0 p-0 font-sans text-gray-900 bg-gradient-to-br from-[#eff6ff] via-white to-[#f5f3ff];
     background-attachment: fixed;
   }
   

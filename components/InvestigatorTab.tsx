@@ -44,6 +44,16 @@ export function InvestigatorTab() {
       }
     }
     fetchTarget()
+
+    // Listen for storage changes (if Side Panel is already open when user clicks Context Menu)
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (changes.investigateTarget?.newValue) {
+        setTargetUrl(changes.investigateTarget.newValue)
+        chrome.storage.local.remove("investigateTarget")
+      }
+    }
+    chrome.storage.onChanged.addListener(handleStorageChange)
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange)
   }, [])
 
   // Process URL to hostname

@@ -4,10 +4,12 @@ import { Clock, Search, BarChart2, Folder, Play, History, Filter } from "lucide-
 import { db } from "./lib/db"
 import { restoreSnapshot } from "./lib/timeTravel"
 import { InvestigatorTab } from "./components/InvestigatorTab"
+import { SettingsTab } from "./components/SettingsTab"
+import { Settings } from "lucide-react"
 import "./style.css"
 
 function SidePanel() {
-  const [activeTab, setActiveTab] = useState<"timeline" | "investigator">("timeline")
+  const [activeTab, setActiveTab] = useState<"timeline" | "investigator" | "settings">("timeline")
   const [searchQuery, setSearchQuery] = useState("")
 
   const snapshots = useLiveQuery(() => db.snapshots.orderBy("createdAt").reverse().toArray())
@@ -43,6 +45,17 @@ function SidePanel() {
           }`}
         >
           <Search className="w-4 h-4" /> Расследование
+        </button>
+        <button 
+          onClick={() => setActiveTab("settings")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === "settings" 
+              ? "bg-white/60 dark:bg-white/20 shadow-sm text-cyan drop-shadow-md" 
+              : "text-gray-600 dark:text-gray-400 hover:bg-white/40 dark:hover:bg-white/10"
+          }`}
+          title="Настройки"
+        >
+          <Settings className="w-4 h-4" />
         </button>
       </div>
 
@@ -116,6 +129,7 @@ function SidePanel() {
         )}
 
         {activeTab === "investigator" && <InvestigatorTab />}
+        {activeTab === "settings" && <SettingsTab />}
       </div>
     </div>
   )

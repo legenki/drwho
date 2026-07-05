@@ -13,17 +13,17 @@ chrome.runtime.onInstalled.addListener(() => {
 })
 
 // Handle Context Menu Click
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === MENU_INVESTIGATE_ID) {
     const targetUrl = info.linkUrl || info.pageUrl
     if (targetUrl) {
-      // Save target to local storage for the sidepanel to pick up
-      await chrome.storage.local.set({ investigateTarget: targetUrl })
-      
-      // Open side panel
+      // Open side panel FIRST before any async operation to preserve user gesture
       if (tab?.windowId) {
-        chrome.sidePanel.open({ windowId: tab.windowId })
+        chrome.sidePanel.open({ windowId: tab.windowId }).catch(console.error)
       }
+      
+      // Save target to local storage for the sidepanel to pick up
+      chrome.storage.local.set({ investigateTarget: targetUrl })
     }
   }
 })
