@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Search, Globe, Clock, Server, Shield, Activity, Code, Calendar } from "lucide-react"
+import { Search, Globe, Clock, Server, Activity, Mail } from "lucide-react"
 import { db } from "../lib/db"
 import { useLiveQuery } from "dexie-react-hooks"
 
@@ -14,6 +14,13 @@ interface PageMetrics {
   scriptCount: number
   frameworks: string[]
   loadTime: number
+  localEmails: string[]
+}
+
+interface HunterData {
+  data?: {
+    emails?: Array<{ value: string; type: string; confidence: number }>
+  }
 }
 
 export function InvestigatorTab() {
@@ -24,6 +31,8 @@ export function InvestigatorTab() {
   const [whois, setWhois] = useState<WhoisData | null>(null)
   const [ipAddress, setIpAddress] = useState<string>("")
   const [pageMetrics, setPageMetrics] = useState<PageMetrics | null>(null)
+  const [hunterData, setHunterData] = useState<HunterData | null>(null)
+  const [hunterKeyMissing, setHunterKeyMissing] = useState(false)
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -45,7 +54,6 @@ export function InvestigatorTab() {
     }
     fetchTarget()
 
-    // Listen for storage changes (if Side Panel is already open when user clicks Context Menu)
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
       if (changes.investigateTarget?.newValue) {
         setTargetUrl(changes.investigateTarget.newValue)
@@ -73,13 +81,14 @@ export function InvestigatorTab() {
   // Fetch local stats
   const stat = useLiveQuery(() => hostname ? db.domainStats.get(hostname) : undefined, [hostname])
 
-  // Fetch Data (Whois, DNS, Page Metrics)
+  // Fetch Data (Whois, DNS, Page Metrics, Hunter)
   useEffect(() => {
     if (!hostname) return
 
     const fetchData = async () => {
       setLoading(true)
       setError("")
+      setHunterData(null)
       
       try {
         // 1. Fetch Whois
@@ -97,12 +106,25 @@ export function InvestigatorTab() {
           })
           .catch(() => console.error("DNS error"))
 
-        // 3. Inject Script (if we have tabId)
+        // 3. Hunter API Search
+        const storage = await chrome.storage.local.get("hunterApiKey")
+        if (storage.hunterApiKey) {
+          setHunterKeyMissing(false)
+          fetch(`https://api.hunter.io/v2/domain-search?domain=${hostname}&api_key=${storage.hunterApiKey}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.data) setHunterData(data)
+            })
+            .catch(() => console.error("Hunter API Error"))
+        } else {
+          setHunterKeyMissing(true)
+        }
+
+        // 4. Inject Script for Local Scraping
         if (tabId) {
           chrome.scripting.executeScript({
             target: { tabId },
             func: () => {
-              // This runs IN the page context
               const title = document.title
               const descMeta = document.querySelector('meta[name="description"]')
               const description = descMeta ? descMeta.getAttribute("content") || "" : ""
@@ -118,7 +140,26 @@ export function InvestigatorTab() {
               const p = window.performance.timing
               const loadTime = p ? p.loadEventEnd - p.navigationStart : 0
 
-              return { title, description, scriptCount, frameworks, loadTime }
+              // Local Email Scraping
+              const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi
+              const bodyText = document.body.innerText
+              const foundEmails = new Set<string>()
+              
+              // from text
+              const matches = bodyText.match(emailRegex)
+              if (matches) matches.forEach(m => foundEmails.add(m.toLowerCase()))
+              
+              // from mailto links
+              document.querySelectorAll('a[href^="mailto:"]').forEach(a => {
+                const href = a.getAttribute("href") || ""
+                const email = href.replace("mailto:", "").split("?")[0].toLowerCase()
+                if (email && emailRegex.test(email)) foundEmails.add(email)
+              })
+
+              return { 
+                title, description, scriptCount, frameworks, loadTime, 
+                localEmails: Array.from(foundEmails)
+              }
             }
           }).then((injectionResults) => {
             if (injectionResults && injectionResults[0]?.result) {
@@ -148,16 +189,57 @@ export function InvestigatorTab() {
 
   const formatDate = (ts?: number) => ts ? new Date(ts).toLocaleString() : "—"
 
+  // Merge emails (local + hunter)
+  const localEmails = pageMetrics?.localEmails || []
+  const hunterEmails = hunterData?.data?.emails?.map(e => e.value) || []
+  const allEmailsSet = new Set([...localEmails, ...hunterEmails])
+  const allEmails = Array.from(allEmailsSet)
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center gap-3 glass-card p-4 rounded-2xl">
-        <div className="p-3 bg-cyan/10 dark:bg-cyan/20 rounded-xl">
+        <div className="p-3 bg-cyan/10 dark:bg-cyan/20 rounded-xl shrink-0">
           <Globe className="text-cyan w-6 h-6" />
         </div>
         <div className="overflow-hidden">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white truncate drop-shadow-sm" title={hostname}>{hostname}</h2>
           {ipAddress && <div className="text-sm font-medium text-gray-500 dark:text-gray-400 font-mono mt-0.5">{ipAddress}</div>}
         </div>
+      </div>
+
+      {/* Email Reconnaissance */}
+      <div className="glass-card p-5 rounded-2xl">
+        <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <Mail className="w-4 h-4 text-cyan" /> Найденные Контакты
+        </h3>
+        
+        {allEmails.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {allEmails.map(email => {
+              const isLocal = localEmails.includes(email)
+              const isHunter = hunterEmails.includes(email)
+              return (
+                <div key={email} className="flex items-center justify-between bg-white/40 dark:bg-black/40 p-3 rounded-lg border border-white/60 dark:border-white/10">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100 truncate">{email}</span>
+                  <div className="flex gap-1 shrink-0">
+                    {isLocal && <span className="text-[10px] uppercase font-bold bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 px-1.5 py-0.5 rounded">Scraped</span>}
+                    {isHunter && <span className="text-[10px] uppercase font-bold bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 px-1.5 py-0.5 rounded">Hunter</span>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="text-center text-sm text-gray-600 dark:text-gray-400 italic">
+            На текущей странице адресов не найдено.
+          </div>
+        )}
+
+        {hunterKeyMissing && (
+          <div className="mt-4 text-xs font-medium bg-purple/10 text-purple border border-purple/20 p-3 rounded-xl">
+            Для глубокого поиска по всему домену вы можете добавить бесплатный API ключ от Hunter.io во вкладке Настройки.
+          </div>
+        )}
       </div>
 
       {/* Local DB Stats */}
