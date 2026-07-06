@@ -3,14 +3,18 @@ import { saveSnapshot } from "./lib/timeTravel"
 
 const MENU_INVESTIGATE_ID = "drwho-investigate"
 
-// Setup Context Menu
+// Setup Context Menu + Side Panel behavior
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: MENU_INVESTIGATE_ID,
-    title: "Dr Who? Расследовать",
+    title: "Dr Who? Investigate",
     contexts: ["page", "link"]
   })
+
+  // Open side panel on icon click instead of popup
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error)
 })
+
 
 // Handle Context Menu Click
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -48,7 +52,7 @@ chrome.runtime.onStartup.addListener(setupAutoSave)
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === AUTO_SAVE_ALARM) {
-    saveSnapshot("Auto Snapshot", "Сгенерировано автоматически")
+    saveSnapshot(undefined, "Auto")
   }
 })
 
@@ -143,5 +147,24 @@ chrome.idle.onStateChanged.addListener((newState) => {
     // Idle or Locked
     updateDomainTime()
     activeDomain = "" // Stop tracking until active again
+  }
+})
+
+// --- OSINT Fetching ---
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === "FETCH_SECURITY_HEADERS") {
+    // We use GET because HEAD is sometimes blocked or heavily cached by CDNs/WAFs
+    fetch(request.url, { method: 'GET' })
+      .then(res => {
+        const headers: Record<string, string> = {}
+        res.headers.forEach((val, key) => {
+          headers[key.toLowerCase()] = val
+        })
+        sendResponse({ success: true, headers })
+      })
+      .catch(err => {
+        sendResponse({ success: false, error: err.message })
+      })
+    return true // indicates async response
   }
 })

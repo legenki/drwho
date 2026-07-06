@@ -4,28 +4,63 @@
 
 @layer base {
   body {
-    /* Base text color adapts automatically with utility classes on wrappers, but we can set default here */
-    @apply m-0 p-0 font-sans text-gray-900 bg-gradient-to-br from-[#eff6ff] via-white to-[#f5f3ff];
-    background-attachment: fixed;
+    @apply m-0 p-0 font-sans text-N800 bg-N20;
+    /* Font smoothing for Atlassian feel */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   
   @media (prefers-color-scheme: dark) {
     body {
-      @apply text-white bg-gradient-to-br from-[#050A1F] via-[#0A1628] to-[#1a1025];
+      @apply text-DN800 bg-DN10; /* Dark theme background */
     }
+  }
+
+  /* Apply basic Atlassian typography to headings */
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-N800 dark:text-DN800 font-semibold;
   }
 }
 
 @layer utilities {
-  .glass-card {
-    @apply bg-white/40 dark:bg-black/30 backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-lg;
+  .atl-card {
+    @apply bg-N0 dark:bg-DN20 border border-N40 dark:border-DN40 shadow-atlassian-100;
+    border-radius: .5rem;
   }
   
-  .glass-input {
-    @apply bg-white/50 dark:bg-black/40 backdrop-blur-md border border-white/60 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan/50 transition-all;
+  .atl-input {
+    @apply bg-N10 dark:bg-DN10 border border-N40 dark:border-DN40 rounded text-N900 dark:text-DN900 hover:bg-N20 dark:hover:bg-DN30 focus:outline-none focus:border-B100 focus:ring-1 focus:ring-B100 transition-colors px-3 py-2;
   }
   
-  .glass-button {
-    @apply bg-cyan/80 dark:bg-cyan/90 hover:bg-cyan text-[#050A1F] font-semibold backdrop-blur-md border border-white/40 dark:border-white/20 shadow-lg hover:shadow-xl transition-all;
+  .atl-button-primary {
+    @apply bg-B400 hover:bg-B500 text-N0 font-medium rounded px-3 py-1.5 transition-colors border-none cursor-pointer;
+  }
+
+  .atl-button-subtle {
+    @apply bg-transparent hover:bg-N20 dark:hover:bg-DN30 text-N500 dark:text-DN300 font-medium rounded px-3 py-1.5 transition-colors cursor-pointer;
+  }
+  
+  .atl-button-danger {
+    @apply bg-R400 hover:bg-R500 text-N0 font-medium rounded px-3 py-1.5 transition-colors cursor-pointer;
+  }
+
+  /* Lozenges */
+  .atl-lozenge {
+    @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider;
+  }
+  .atl-lozenge-default {
+    @apply bg-N20 text-N500 dark:bg-DN30 dark:text-DN300;
+  }
+  .atl-lozenge-success {
+    @apply bg-G50 text-G500 dark:bg-G500/20 dark:text-G200;
+  }
+  .atl-lozenge-danger {
+    @apply bg-R50 text-R500 dark:bg-R500/20 dark:text-R200;
+  }
+  .atl-lozenge-discovery {
+    @apply bg-P50 text-P500 dark:bg-P500/20 dark:text-P200;
+  }
+  .atl-lozenge-inprogress {
+    @apply bg-B50 text-B500 dark:bg-B500/20 dark:text-B200;
   }
 }

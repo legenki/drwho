@@ -2,9 +2,41 @@ import { v4 as uuidv4 } from "uuid"
 import { db, type Snapshot } from "./db"
 
 /**
- * Сохраняет текущее состояние всех окон и вкладок.
+ * Generates a unique name for a snapshot based on tab content.
  */
-export async function saveSnapshot(name: string = "Manual Snapshot", note: string = ""): Promise<string> {
+function generateSnapshotName(tabs: { url: string; title: string }[]): string {
+  // Count domain frequency
+  const domainCounts: Record<string, number> = {}
+  for (const tab of tabs) {
+    try {
+      const host = new URL(tab.url).hostname.replace("www.", "")
+      domainCounts[host] = (domainCounts[host] || 0) + 1
+    } catch { /* skip invalid urls */ }
+  }
+
+  // Find top domain
+  const topDomain = Object.entries(domainCounts)
+    .sort((a, b) => b[1] - a[1])[0]?.[0]
+
+  // Time format: "17:45"
+  const time = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
+
+  if (topDomain) {
+    const others = tabs.length - (domainCounts[topDomain] || 0)
+    if (others > 0) {
+      return `${topDomain} +${others} · ${time}`
+    }
+    return `${topDomain} · ${time}`
+  }
+
+  return `Snapshot · ${time}`
+}
+
+/**
+ * Saves current state of all windows and tabs.
+ * If name is not provided, generates a unique name automatically.
+ */
+export async function saveSnapshot(name?: string, note: string = ""): Promise<string | null> {
   const windows = await chrome.windows.getAll({ populate: true })
   
   const snapshotWindows = windows.map((win) => ({
@@ -17,10 +49,21 @@ export async function saveSnapshot(name: string = "Manual Snapshot", note: strin
     }))
   }))
 
+  // Count total number of tabs
+  const allTabs = snapshotWindows.flatMap(w => w.tabs)
+  
+  // Do not save empty snapshots
+  if (allTabs.length === 0) {
+    console.log("Skipping snapshot: no tabs found")
+    return null
+  }
+
+  const snapshotName = name || generateSnapshotName(allTabs)
+
   const snapshot: Snapshot = {
     id: uuidv4(),
     createdAt: new Date(),
-    name,
+    name: snapshotName,
     note,
     tags: [],
     windows: snapshotWindows
@@ -30,8 +73,9 @@ export async function saveSnapshot(name: string = "Manual Snapshot", note: strin
   return snapshot.id
 }
 
+
 /**
- * Восстанавливает окна и вкладки из снимка.
+ * Restores windows and tabs from a snapshot.
  */
 export async function restoreSnapshot(snapshotId: string) {
   const snapshot = await db.snapshots.get(snapshotId)
@@ -40,13 +84,13 @@ export async function restoreSnapshot(snapshotId: string) {
   for (const win of snapshot.windows) {
     if (win.tabs.length === 0) continue
     
-    // Создаем новое окно с первой вкладкой
+    // Create a new window with the first tab
     const firstTab = win.tabs[0]
     const newWindow = await chrome.windows.create({
       url: firstTab.url
     })
 
-    // Добавляем остальные вкладки
+    // Add remaining tabs
     for (let i = 1; i < win.tabs.length; i++) {
       const tab = win.tabs[i]
       await chrome.tabs.create({
